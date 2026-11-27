@@ -136,3 +136,8 @@ crashlytics-build.properties
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Standalone league regression harness
+!/Tests/League/LeagueChecks.csproj
+/Tests/League/bin/
+/Tests/League/obj/
