@@ -2,14 +2,18 @@
 
 MiniFootball is a single-player, five-a-side football league for Windows. It uses Unity **6000.5.8f1**, C#, the existing URP project settings, and the Unity Input System.
 
-## Generate and launch on Windows
+## Generate or upgrade on Windows
 
 1. Open this checkout with Unity **6000.5.8f1**. Wait for package import and script compilation.
-2. Select **MiniFootball > Build Complete Game**.
+2. Save any open scene edits. Select **MiniFootball > Build Complete Game** to generate the v2 assets, including when upgrading an existing v1 checkout. Run **MiniFootball > Validate Generated Game** and check the Console.
 3. Open `Assets/MiniFootballGenerated/MiniFootball.unity` and enter Play Mode. Click inside the Game view to give it keyboard focus.
 4. For a standalone build, select **File > Build Profiles**, activate Windows, confirm that the generated MiniFootball scene is first in the scene list, then build and run.
 
-The menu command saves the playable scene, connected camera and game controller, procedural stadium and ball, stylized character prefab, URP materials, and three animation clips into `Assets/MiniFootballGenerated`. The controller draws the menu and HUD in the generated scene. Generation owns that directory and refreshes its outputs in place. Keep hand-edited assets elsewhere. It preserves existing build-scene entries and adds the generated scene first. Keep the supplied SampleScene and its original URP settings for reference.
+The generator writes the match scene, character and stadium prefabs, materials, animation clips and Animator controller into `Assets/MiniFootballGenerated`. It uses the rigged FBX included in the checkout. Blender is optional for editing the mesh source. To rebuild the FBX, run `blender -b --factory-startup --python Tools/Art/build_athlete.py` from the project root. Keep hand-edited assets outside the generated directory.
+
+The included model has a 21-bone rig and two body detail levels. [Player model preview from Blender](Docs/Footballer.jpg)
+
+Select **Continue Game** to resume a v1 season. The league uses the same local save file for the club, fixtures and player statistics.
 
 ## Play
 
@@ -19,27 +23,18 @@ Each club plays the others once. Play seven three-minute fixtures. Each complete
 
 | Input | Action |
 | --- | --- |
-| WASD | Move the selected player |
+| WASD | Move relative to the broadcast camera. Hold a direction to aim a pass or pick a side of the goal. |
 | Shift | Sprint while stamina is available |
-| J | Pass and switch to the receiving player |
-| K | Shoot toward the opposing goal |
-| L | Tackle a nearby opponent with possession |
-| Q | Switch to the teammate closest to the ball |
-| Esc | Pause or resume. Select a valid replacement in the pause menu to use the substitute. |
+| J | Pass to a teammate in the aimed direction or take a throw-in |
+| K | Tap for a quick shot or hold and release for more power. Near a high, loose ball, press to jump for a header. |
+| L | Attempt a tackle within reach of the opposing carrier |
+| Q | Switch to another teammate near the ball’s projected path |
+| Esc | Pause or resume. Use the pause menu for a substitution or to change match settings. |
 
-MiniFootball uses arcade rebounds at the pitch boundaries. Goals restart play from the center. Scores and player appearances, goals, and assists are saved at full time. Club creation and lineup changes also save immediately. Continue Game restores the club and the current round. The table is reconstructed from saved results. Leaving a match before full time discards the match. New Season can retain your club while resetting fixtures and stats, or replace it with a new club.
+When the whole ball crosses a touchline, the opponents of the last team to touch it take a throw-in. A ball crossing the goal line outside the goal results in a goal kick after an attacking touch or a corner after a defending touch. When the taker is ready, aim and press J for a pass or throw. Use K for a shot or clearance from a kicking restart. The taker passes automatically after three seconds without input. The home club kicks off first, and the conceding side kicks off after a goal. **Match Settings** in the main or pause menu controls the broadcast camera height, goal replays, graphics preset and frame-rate cap.
+
+Scores and player appearances, goals, and assists are saved at full time. Club creation and lineup changes also save immediately. Continue Game restores the club and the current round. The table is reconstructed from saved results. Leaving a match before full time discards the match. New Season can retain your club while resetting fixtures and stats, or replace it with a new club.
 
 ## Validation
 
-The standalone regression harness uses the actual league source and lightweight Unity API stand-ins. With .NET 8, run `dotnet run --project Tests/League/LeagueChecks.csproj`. It checks the roster and draft rules, all 28 fixtures, season progression, scoring, standings tie-breakers, statistics, and save-file handling. Use a C# syntax parser and `git diff --check` for cloud checks.
-
-### Required Windows Unity smoke tests
-
-These checks require local Unity and are **unrun in the cloud**.
-
-- Import the project with the pinned editor. Check the Console for package, script, and shader errors.
-- Run **Build Complete Game** twice. Confirm the generated scene remains a single build entry, existing scenes are retained, and generated prefabs and animation references remain connected. Check that an open modified generated scene is protected.
-- Create a club from the new-game screen. Try a duplicate pick, a lineup without its keeper or a required outfield position, and a valid lineup. Verify the badge, kit colors, naming mode, two free agents, lineup editing, and reload through Continue Game.
-- Start a match at 16:9 and in a resized window. Verify the clock, ball physics, team differentiation, selection marker, visible animations, shadows, goalposts and nets, camera framing, movement, sprint and stamina, pass, shot, tackle, switching, keeper behavior, valid substitutions, pause and resume, and kickoff after a goal. Check sideline rebounds and shots that strike or miss the posts.
-- Complete a match. Verify the score in both home and away fixtures, the three simulated AI results, points, player statistics, and save reload. Verify that leaving an incomplete match preserves the previous saved round. Finish all seven rounds and verify the champion and New Season flows.
-- Make a Windows build from the generated scene. Launch outside the Editor and repeat the first-run, input, and persistence checks.
+With .NET 8, run `dotnet run --project Tests/League/LeagueChecks.csproj` to exercise the league and football rules outside the Editor. Run the Windows acceptance pass on the target laptop to verify the humanoid import, animation contact, live physics, tactical behavior, replays, season compatibility and frame times. [Project audit and Windows test checklist](Docs/Version2Validation.md)

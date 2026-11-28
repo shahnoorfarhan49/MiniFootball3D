@@ -6,6 +6,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../Assets/MiniFootball/FootballTactics.cs" Link="FootballTactics.cs" />
+    <Compile Include="../../Assets/MiniFootball/MatchRules.cs" Link="MatchRules.cs" />
     <Compile Include="../../Assets/MiniFootball/League.cs" Link="League.cs" />
   </ItemGroup>
 </Project>

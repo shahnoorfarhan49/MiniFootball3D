@@ -79,3 +79,9 @@ finally
 }
 
 Console.WriteLine("League checks passed: database, squad validation, schedule, scoring, tie-breakers, statistics and save round trip.");
+
+BoundaryChecks.Run();
+Console.WriteLine("Pitch boundary checks passed for both ends, last touches, the goal mouth and fast crossings.");
+
+TacticsChecks.Run();
+Console.WriteLine("Tactics checks passed for attacking shape, pressing, pass selection, interception and goalkeeping.");

@@ -13,7 +13,7 @@ namespace MiniFootball
         public GameObject CharacterPrefab, BallPrefab;
         public Material HighlightMaterial;
 
-        enum ScreenPage { Main, Create, Hub, Match, Pause, Result, Champion }
+        enum ScreenPage { Main, Create, Hub, Match, Pause, Result, Champion, Settings }
         enum HubTab { Standings, Fixtures, Squad, Statistics }
 
         static readonly Color Background = new Color32(13, 19, 32, 255);
@@ -24,7 +24,8 @@ namespace MiniFootball
         static readonly Color Alert = new Color32(255, 182, 136, 255);
         static readonly Color Text = new Color32(244, 248, 255, 255);
 
-        ScreenPage page;
+        ScreenPage page, settingsReturn;
+        static readonly string[] GraphicsPresets = { "Low", "Medium", "High" };
         HubTab tab;
         Season season;
         Match match;
@@ -41,7 +42,7 @@ namespace MiniFootball
         void Awake()
         {
             Time.timeScale = 1;
-            Application.targetFrameRate = 60;
+            MatchPresentation.Initialize(MatchCamera);
             season = League.Load();
             SetBackdrop();
         }
@@ -55,6 +56,11 @@ namespace MiniFootball
 
         void Update()
         {
+            if (page == ScreenPage.Settings && Keys?.escapeKey.wasPressedThisFrame == true)
+            {
+                page = settingsReturn;
+                return;
+            }
             if (page == ScreenPage.Match && Keys?.escapeKey.wasPressedThisFrame == true)
             {
                 SetPause(true);
@@ -79,7 +85,7 @@ namespace MiniFootball
 
         void FixedUpdate()
         {
-            if (page == ScreenPage.Match) match.Tick(Time.fixedDeltaTime, Keys);
+            if (page == ScreenPage.Match) match.Tick(Time.fixedDeltaTime);
         }
 
         void LateUpdate()
@@ -142,15 +148,20 @@ namespace MiniFootball
         void StartMatch()
         {
             if (season.Next == null) return;
+            if (!CharacterPrefab || !CharacterPrefab.GetComponentInChildren<Animator>(true))
+            {
+                feedback = "Regenerate this scene with MiniFootball > Build Complete Game in the Editor.";
+                return;
+            }
             feedback = "";
             match = new Match(season, season.Next, CharacterPrefab, BallPrefab, MatchCamera, HighlightMaterial);
-            MatchCamera.fieldOfView = 47;
             Time.timeScale = 1;
             page = ScreenPage.Match;
         }
 
         void SetPause(bool paused)
         {
+            match.ClearInput();
             confirmExit = false;
             page = paused ? ScreenPage.Pause : ScreenPage.Match;
             Time.timeScale = paused ? 0 : 1;
@@ -201,6 +212,7 @@ namespace MiniFootball
 
         void OnDestroy()
         {
+            MatchPresentation.Shutdown();
             if (badgeTextures == null) return;
             foreach (Texture2D texture in badgeTextures) Destroy(texture);
         }
@@ -261,6 +273,7 @@ namespace MiniFootball
                 switch (page)
                 {
                     case ScreenPage.Main: MainMenu(); break;
+                    case ScreenPage.Settings: Settings(); break;
                     case ScreenPage.Create: CreateClub(); break;
                     case ScreenPage.Hub: Hub(); break;
                     case ScreenPage.Match: Scoreboard(); break;
@@ -287,6 +300,7 @@ namespace MiniFootball
                 if (season == null) { OpenEditor(); return; }
                 confirmReset = true;
             }
+            if (Button(R(846, 594, 235, 46), "Match Settings")) { OpenSettings(); return; }
             if (confirmReset)
             {
                 Label(R(74, 503, 530, 28), "Starting a new season replaces the saved results and stats.", small, Alert);
@@ -299,6 +313,38 @@ namespace MiniFootball
                 if (Button(R(74, 591, 185, 40), "Cancel")) confirmReset = false;
                 Feedback(270, 595, 365);
             }
+        }
+
+        void OpenSettings()
+        {
+            settingsReturn = page;
+            page = ScreenPage.Settings;
+        }
+
+        void Settings()
+        {
+            Label(R(170, 75, 820, 68), "Match settings", title);
+            Fill(R(170, 170, 940, 360), PanelColor);
+            Label(R(205, 200, 310, 44), "Graphics quality");
+            for (int i = 0; i < GraphicsPresets.Length; i++)
+                if (Button(R(528 + i * 183, 200, 172, 44), GraphicsPresets[i], MatchPresentation.Preset == i))
+                    MatchPresentation.Preset = i;
+
+            Label(R(205, 278, 310, 44), "Frame rate limit");
+            if (Button(R(528, 278, 172, 44), "30 FPS", MatchPresentation.FrameRate == 30)) MatchPresentation.FrameRate = 30;
+            if (Button(R(711, 278, 172, 44), "60 FPS", MatchPresentation.FrameRate == 60)) MatchPresentation.FrameRate = 60;
+
+            Label(R(205, 356, 310, 44), "Broadcast camera height");
+            float height = MatchPresentation.CameraHeight;
+            if (Button(R(528, 356, 80, 44), "−", false, height > 10)) MatchPresentation.CameraHeight = Mathf.Max(10, height - 1);
+            Label(R(620, 356, 150, 44), height.ToString("0") + " m", normal, Text, TextAnchor.MiddleCenter);
+            if (Button(R(785, 356, 80, 44), "+", false, height < 22)) MatchPresentation.CameraHeight = Mathf.Min(22, height + 1);
+
+            Label(R(205, 434, 310, 44), "Goal replays");
+            if (Button(R(528, 434, 172, 44), MatchPresentation.Replays ? "On" : "Off", MatchPresentation.Replays))
+                MatchPresentation.Replays = !MatchPresentation.Replays;
+            if (Button(R(863, 560, 247, 48), settingsReturn == ScreenPage.Pause ? "Back to Match" : "Main Menu", true))
+                page = settingsReturn;
         }
 
         void CreateClub()
@@ -427,6 +473,7 @@ namespace MiniFootball
                 int opponent = next.Home == League.UserClub ? next.Away : next.Home;
                 Label(R(56, 634, 720, 51), $"Round {next.Round + 1} of 7  /  vs {season.Team(opponent)}", heading);
                 if (Button(R(914, 634, 311, 51), "Play Next Match", true)) StartMatch();
+                if (tab != HubTab.Squad) Feedback(56, 681, 1140);
             }
         }
 
@@ -527,6 +574,12 @@ namespace MiniFootball
             Label(R(742, 18, 255, 59), season.Team(match.Opponent));
             Fill(R(593, 78, 94, 34), Background);
             Label(R(593, 78, 94, 34), match.Clock, normal, Text, TextAnchor.MiddleCenter);
+            if (match.IsReplaying)
+            {
+                Fill(R(34, 625, 245, 48), PanelColor);
+                Label(R(52, 625, 211, 48), "Goal replay", heading, Accent);
+                return;
+            }
             if (!string.IsNullOrWhiteSpace(match.Notice))
             {
                 Fill(R(376, 140, 528, 54), PanelColor);
@@ -536,8 +589,15 @@ namespace MiniFootball
             Label(R(49, 632, 272, 28), season.Player(match.SelectedId));
             Fill(R(49, 669, 272, 6), RowColor);
             Fill(R(49, 669, 272 * match.Energy, 6), Accent);
+            if (match.ShotCharge > 0)
+            {
+                Fill(R(34, 583, 304, 37), PanelColor);
+                Label(R(48, 585, 74, 31), "Power", small);
+                Fill(R(125, 598, 188, 7), RowColor);
+                Fill(R(125, 598, 188 * match.ShotCharge, 7), Alert);
+            }
             Fill(R(361, 644, 884, 46), PanelColor);
-            Label(R(372, 644, 862, 46), "WASD Move     Shift Sprint     J Pass     K Shoot     L Tackle     Q Switch     Esc Pause / Sub", small, Text, TextAnchor.MiddleCenter);
+            Label(R(372, 644, 862, 46), "WASD Move     Shift Sprint     J Pass     Hold K Shoot     L Tackle     Q Switch     Esc Pause / Sub", small, Text, TextAnchor.MiddleCenter);
         }
 
         void Pause()
@@ -545,7 +605,8 @@ namespace MiniFootball
             Fill(R(0, 0, 1280, 720), new Color(0, 0, 0, .68f));
             Fill(R(342, 88, 596, 546), PanelColor);
             Label(R(380, 113, 520, 66), "Match paused", title);
-            if (Button(R(380, 197, 520, 46), "Resume", true)) { SetPause(false); return; }
+            if (Button(R(380, 197, 250, 46), "Resume", true)) { SetPause(false); return; }
+            if (Button(R(646, 197, 254, 46), "Match Settings")) { OpenSettings(); return; }
             Label(R(380, 264, 520, 33), match.SubUsed ? "Substitution used" : "Bring on " + season.Player(match.ReserveId), heading);
             if (!match.SubUsed)
             {
